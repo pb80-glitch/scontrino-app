@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -696,11 +696,14 @@ let addState = {
   qtyUnit:'g',
   date: todayInputValue(),
   editingEntryId: null,
-  returnToProduct: null
+  returnToProduct: null,
+  lookupStatus: null
 };
 
 function resetAddState(){
-  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null};
+  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null};
+  lastLookedUpBarcode = null;
+  if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
 }
 
 function todayInputValue(){
@@ -708,6 +711,67 @@ function todayInputValue(){
 }
 function toDateInputValue(isoString){
   return new Date(isoString).toISOString().slice(0,10);
+}
+
+// ---------------- ONLINE PRODUCT LOOKUP (Open Food Facts) ----------------
+let lookupTimer = null;
+let lastLookedUpBarcode = null;
+
+function scheduleOnlineLookup(barcode){
+  if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
+  // codici a barre reali hanno di solito 8, 12 o 13 cifre
+  if(!barcode || barcode.length < 8 || !/^\d+$/.test(barcode)) return;
+  if(addState.matchedProduct) return; // già noto localmente, non serve cercare online
+  lookupTimer = setTimeout(()=> runOnlineLookup(barcode), 600);
+}
+
+async function runOnlineLookup(barcode){
+  if(barcode === lastLookedUpBarcode) return;
+  if(addState.barcode !== barcode || addState.matchedProduct) return;
+  // non sovrascrivere se l'utente ha già iniziato a scrivere un nome a mano
+  if(addState.newName && addState.newName.trim()) return;
+
+  lastLookedUpBarcode = barcode;
+  addState.lookupStatus = 'loading';
+  renderProductFields();
+
+  try{
+    const controller = new AbortController();
+    const timeoutId = setTimeout(()=> controller.abort(), 6000);
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json?fields=product_name,brands,quantity,categories`, {signal: controller.signal});
+    clearTimeout(timeoutId);
+
+    // se nel frattempo l'utente ha cambiato codice o il prodotto è risultato noto, ignora il risultato
+    if(addState.barcode !== barcode || addState.matchedProduct) return;
+
+    if(!res.ok){ addState.lookupStatus = 'error'; renderProductFields(); return; }
+    const data = await res.json();
+
+    if(data.status !== 1 || !data.product || !data.product.product_name){
+      addState.lookupStatus = 'not_found';
+      renderProductFields();
+      return;
+    }
+
+    const p = data.product;
+    addState.newName = p.product_name || '';
+    addState.newBrand = p.brands ? p.brands.split(',')[0].trim() : '';
+    addState.newDescription = p.quantity || (p.categories ? p.categories.split(',')[0].trim() : '');
+
+    // stima il tipo di unità dalla quantità dichiarata (es. "500 g", "1 l")
+    if(p.quantity){
+      const q = p.quantity.toLowerCase();
+      if(/\bl\b|litri|ml/.test(q)) addState.newUnitType = 'l';
+      else if(/\bg\b|\bkg\b|grammi/.test(q)) addState.newUnitType = 'kg';
+    }
+
+    addState.lookupStatus = 'found';
+    renderProductFields();
+  }catch(err){
+    if(addState.barcode !== barcode || addState.matchedProduct) return;
+    addState.lookupStatus = 'error';
+    renderProductFields();
+  }
 }
 
 function startAddPriceForProduct(barcode){
@@ -798,7 +862,9 @@ function renderAdd(){
     document.getElementById('barcodeInput').addEventListener('input', e=>{
       addState.barcode = e.target.value.trim();
       addState.matchedProduct = products.find(p=>p.barcode === addState.barcode) || null;
+      addState.lookupStatus = null;
       renderProductFields();
+      scheduleOnlineLookup(addState.barcode);
     });
     document.getElementById('scanBtn').addEventListener('click', toggleCamera);
   }
@@ -826,6 +892,10 @@ function renderProductFields(){
   } else {
     html += `
       <p class="hint">Codice non riconosciuto: è un prodotto nuovo. Compila i dettagli qui sotto.</p>
+      ${addState.lookupStatus === 'loading' ? `<p class="hint" style="color:var(--green-dark);">🔎 Cerco il prodotto online...</p>` : ''}
+      ${addState.lookupStatus === 'found' ? `<p class="hint" style="color:var(--green-dark);">✓ Trovato online — controlla e correggi se serve.</p>` : ''}
+      ${addState.lookupStatus === 'not_found' ? `<p class="hint">Non trovato nel database online: inserisci i dati a mano.</p>` : ''}
+      ${addState.lookupStatus === 'error' ? `<p class="hint">Ricerca online non disponibile (offline?): inserisci i dati a mano.</p>` : ''}
       <div class="field">
         <label>Nome prodotto</label>
         <input id="nameInput" placeholder="Es. Passata di pomodoro" value="${escapeAttr(addState.newName)}">
@@ -1192,9 +1262,11 @@ async function toggleCamera(){
           container.innerHTML = '';
           addState.barcode = value;
           addState.matchedProduct = products.find(p=>p.barcode === value) || null;
+          addState.lookupStatus = null;
           document.getElementById('barcodeInput').value = value;
           renderProductFields();
           showToast('Codice rilevato: ' + value);
+          if(!addState.matchedProduct) runOnlineLookup(value);
         }
       }catch(err){ /* ignore single-frame errors */ }
     }, 400);
