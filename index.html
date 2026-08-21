@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -964,6 +964,7 @@ function renderProductFields(){
       <label>Data</label>
       <input id="dateInput" type="date" value="${addState.date}" max="${todayInputValue()}">
     </div>
+    <div id="pricePreview" style="background:var(--green-light);border:1px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-family:'Space Mono',monospace;font-size:13px;color:var(--green-dark);display:none;"></div>
     <button class="btn-primary" id="saveEntryBtn">${addState.editingEntryId ? 'Salva modifiche' : 'Salva prezzo'}</button>
     ${(addState.editingEntryId || addState.returnToProduct) ? `<button class="btn-secondary" id="cancelEditBtn">Annulla</button>` : ''}
   `;
@@ -992,12 +993,13 @@ function renderProductFields(){
   document.getElementById('newStoreInline').addEventListener('input', e=>{
     addState.store = e.target.value;
   });
-  document.getElementById('priceInput').addEventListener('input', e=> addState.price = e.target.value);
+  document.getElementById('priceInput').addEventListener('input', e=>{ addState.price = e.target.value; updatePricePreview(); });
   const qtyInput = document.getElementById('qtyInput');
-  if(qtyInput) qtyInput.addEventListener('input', e=> addState.qty = e.target.value);
+  if(qtyInput) qtyInput.addEventListener('input', e=>{ addState.qty = e.target.value; updatePricePreview(); });
   const qtyUnitSelect = document.getElementById('qtyUnitSelect');
-  if(qtyUnitSelect) qtyUnitSelect.addEventListener('change', e=> addState.qtyUnit = e.target.value);
+  if(qtyUnitSelect) qtyUnitSelect.addEventListener('change', e=>{ addState.qtyUnit = e.target.value; updatePricePreview(); });
   document.getElementById('dateInput').addEventListener('change', e=> addState.date = e.target.value);
+  updatePricePreview();
 
   document.getElementById('saveEntryBtn').addEventListener('click', saveEntry);
   const cancelBtn = document.getElementById('cancelEditBtn');
@@ -1012,6 +1014,47 @@ function renderProductFields(){
 }
 
 function updateSaveState(){}
+
+function updatePricePreview(){
+  const el = document.getElementById('pricePreview');
+  if(!el) return;
+
+  const isKnown = !!addState.matchedProduct;
+  const unitType = isKnown ? addState.matchedProduct.unitType : addState.newUnitType;
+  const priceNum = parseFloat(String(addState.price).replace(',', '.'));
+
+  if(!priceNum || priceNum <= 0){ el.style.display = 'none'; return; }
+
+  if(unitType === 'pz'){
+    el.style.display = 'block';
+    el.style.background = 'var(--green-light)';
+    el.style.borderColor = 'var(--green)';
+    el.style.color = 'var(--green-dark)';
+    el.textContent = `≈ ${fmtPrice(priceNum)} a pezzo`;
+    return;
+  }
+
+  const qtyNum = parseFloat(String(addState.qty).replace(',', '.'));
+  if(!qtyNum || qtyNum <= 0){ el.style.display = 'none'; return; }
+
+  const stdQty = toStandardQty(qtyNum, addState.qtyUnit);
+  const perUnit = priceNum / stdQty;
+  const label = unitType === 'kg' ? '/kg' : '/l';
+
+  el.style.display = 'block';
+  // valori fuori da un intervallo plausibile: probabile errore di unità di misura (es. g invece di kg)
+  if(perUnit > 500 || perUnit < 0.01){
+    el.style.background = 'var(--red-light)';
+    el.style.borderColor = 'var(--red)';
+    el.style.color = 'var(--red)';
+    el.innerHTML = `⚠️ ${fmtPrice(perUnit)}${label} — sembra un valore anomalo, controlla quantità e unità (g/kg, ml/l)`;
+  } else {
+    el.style.background = 'var(--green-light)';
+    el.style.borderColor = 'var(--green)';
+    el.style.color = 'var(--green-dark)';
+    el.textContent = `≈ ${fmtPrice(perUnit)}${label}`;
+  }
+}
 
 async function saveEntry(){
   const isKnown = !!addState.matchedProduct;
