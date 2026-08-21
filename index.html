@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2F6B4F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scontrino">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Scontrino — confronta i prezzi</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root{
+  --bg:#FAF9F5;
+  --paper:#FFFFFF;
+  --ink:#1C1E1B;
+  --ink-soft:#5B5D57;
+  --green:#2F6B4F;
+  --green-dark:#234F3B;
+  --green-light:#E4EFE7;
+  --gold:#DB9430;
+  --gold-light:#FBEAD0;
+  --line:#DAD6CC;
+  --red:#B24B39;
+  --red-light:#F6E3DE;
+  --radius:14px;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  -webkit-tap-highlight-color:transparent;
+  min-height:100vh;
+}
+
+#app{
+  max-width:460px;
+  margin:0 auto;
+  min-height:100vh;
+  background:var(--bg);
+  position:relative;
+  padding-bottom:78px;
+  display:flex;
+  flex-direction:column;
+}
+
+header.top{
+  padding:22px 20px 14px;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+}
+header.top h1{
+  font-family:'Fraunces',serif;
+  font-weight:700;
+  font-size:26px;
+  margin:0;
+  letter-spacing:-0.02em;
+}
+header.top .tag{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  color:var(--ink-soft);
+  letter-spacing:0.04em;
+}
+header.sub{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 20px 16px;
+}
+header.sub button.back{
+  border:none;background:none;font-size:20px;color:var(--ink);cursor:pointer;padding:4px 8px 4px 0;
+  font-family:'Space Mono',monospace;
+}
+header.sub h2{
+  font-family:'Fraunces',serif;
+  font-size:20px;
+  font-weight:600;
+  margin:0;
+}
+header.sub .titles{display:flex;flex-direction:column;gap:1px;}
+header.sub .brand-tag{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  color:var(--ink-soft);
+  letter-spacing:0.03em;
+}
+
+main{flex:1;padding:0 20px;}
+
+/* ---------- Search ---------- */
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 14px;
+  margin-bottom:16px;
+}
+.search-box input{
+  border:none;outline:none;background:none;
+  font-family:'Inter';font-size:14px;flex:1;color:var(--ink);
+}
+
+/* ---------- Product list ---------- */
+.product-card{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+  transition:transform .1s ease;
+}
+.product-card:active{transform:scale(0.98);}
+.product-card .name{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:16px;
+  margin-bottom:4px;
+}
+.product-card .meta{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  color:var(--ink-soft);
+}
+.product-card .brand{
+  font-family:'Inter';
+  font-size:12px;
+  color:var(--ink-soft);
+  margin-bottom:2px;
+}
+.product-desc{
+  font-size:13px;
+  color:var(--ink-soft);
+  line-height:1.5;
+  margin:2px 0 18px;
+}
+.product-card .price{
+  text-align:right;
+}
+.product-card .price .val{
+  font-family:'Space Mono',monospace;
+  font-weight:700;
+  font-size:16px;
+  color:var(--green-dark);
+}
+.product-card .price .store{
+  font-size:10.5px;
+  color:var(--ink-soft);
+  margin-top:2px;
+}
+
+.empty-state{
+  text-align:center;
+  padding:60px 20px;
+  color:var(--ink-soft);
+}
+.empty-state .big{
+  font-family:'Fraunces',serif;
+  font-size:19px;
+  color:var(--ink);
+  margin-bottom:8px;
+}
+.empty-state p{font-size:13.5px;line-height:1.5;margin:0;}
+
+/* ---------- Forms ---------- */
+.field{margin-bottom:16px;}
+.field label{
+  display:block;
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:var(--ink-soft);
+  margin-bottom:6px;
+}
+.field input, .field select{
+  width:100%;
+  padding:12px 14px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--paper);
+  font-family:'Inter';
+  font-size:15px;
+  color:var(--ink);
+  outline:none;
+}
+.field input:focus, .field select:focus{border-color:var(--green);}
+.field-row{display:flex;gap:10px;}
+.field-row .field{flex:1;}
+
+.unit-toggle{display:flex;gap:8px;}
+.unit-toggle button{
+  flex:1;
+  padding:11px;
+  border:1px solid var(--line);
+  background:var(--paper);
+  border-radius:10px;
+  font-family:'Inter';font-size:13.5px;
+  cursor:pointer;
+  color:var(--ink-soft);
+}
+.unit-toggle button.active{
+  background:var(--green-light);
+  border-color:var(--green);
+  color:var(--green-dark);
+  font-weight:600;
+}
+
+.barcode-row{display:flex;gap:8px;}
+.barcode-row input{flex:1;}
+.scan-btn{
+  border:1px solid var(--green);
+  background:var(--green-light);
+  color:var(--green-dark);
+  border-radius:10px;
+  padding:0 16px;
+  font-size:18px;
+  cursor:pointer;
+}
+
+.chip-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.chip{
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--paper);
+  font-size:13px;
+  cursor:pointer;
+  color:var(--ink-soft);
+}
+.chip.active{
+  background:var(--green);
+  border-color:var(--green);
+  color:#fff;
+  font-weight:600;
+}
+
+.btn-primary{
+  width:100%;
+  padding:15px;
+  border:none;
+  border-radius:10px;
+  background:var(--green);
+  color:#fff;
+  font-family:'Inter';font-weight:600;font-size:15px;
+  cursor:pointer;
+  margin-top:6px;
+}
+.btn-primary:active{background:var(--green-dark);}
+.btn-primary:disabled{background:#C9C6BC;cursor:not-allowed;}
+
+.btn-secondary{
+  width:100%;
+  padding:14px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Inter';font-size:14px;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+.hint{
+  font-size:12.5px;
+  color:var(--ink-soft);
+  line-height:1.5;
+  margin:-6px 0 16px;
+}
+
+/* ---------- Receipt / best price card ---------- */
+.receipt{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:var(--radius) var(--radius) 0 0;
+  padding:20px;
+  position:relative;
+  margin-bottom:4px;
+}
+.receipt-zigzag{
+  height:12px;
+  background:
+    linear-gradient(135deg, var(--bg) 25%, transparent 25%) 0 0,
+    linear-gradient(-135deg, var(--bg) 25%, transparent 25%) 0 0;
+  background-size:14px 14px;
+  background-color:var(--paper);
+  margin-bottom:18px;
+}
+.receipt .best-label{
+  font-family:'Space Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color:var(--gold);
+  font-weight:700;
+  margin-bottom:6px;
+}
+.receipt .best-price{
+  font-family:'Space Mono',monospace;
+  font-size:32px;
+  font-weight:700;
+  color:var(--ink);
+}
+.receipt .best-store{
+  font-family:'Fraunces',serif;
+  font-size:15px;
+  color:var(--ink-soft);
+  margin-top:4px;
+}
+
+.history-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:13px 4px;
+  border-bottom:1px dashed var(--line);
+}
+.history-item:last-child{border-bottom:none;}
+.history-item .store{
+  font-family:'Inter';font-weight:600;font-size:14px;
+}
+.history-item .date{
+  font-family:'Space Mono',monospace;
+  font-size:11px;color:var(--ink-soft);margin-top:2px;
+}
+.history-item .amounts{text-align:right;}
+.history-item .price{
+  font-family:'Space Mono',monospace;font-weight:700;font-size:14.5px;
+}
+.history-item .perunit{
+  font-size:11px;color:var(--ink-soft);margin-top:2px;
+}
+.history-item .del{
+  border:none;background:none;color:var(--red);font-size:13px;cursor:pointer;
+  margin-left:6px;padding:4px;
+}
+.history-item .edit{
+  border:none;background:none;color:var(--ink-soft);font-size:14px;cursor:pointer;
+  margin-left:10px;padding:4px;
+}
+
+.section-label{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:var(--ink-soft);
+  margin:22px 0 10px;
+}
+
+/* ---------- Supermarkets ---------- */
+.store-row{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px 16px;
+  margin-bottom:8px;
+}
+.store-row .name{font-family:'Inter';font-weight:600;font-size:14.5px;}
+.store-row button{
+  border:none;background:none;color:var(--red);cursor:pointer;font-size:13px;
+}
+
+/* ---------- Bottom nav ---------- */
+nav.bottom{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  max-width:460px;
+  margin:0 auto;
+  background:var(--paper);
+  border-top:1px solid var(--line);
+  display:flex;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+  gap:4px;
+}
+nav.bottom button{
+  flex:1;
+  border:none;
+  background:none;
+  padding:8px 4px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  cursor:pointer;
+  color:var(--ink-soft);
+  font-family:'Inter';font-size:10.5px;
+}
+nav.bottom button .ic{font-size:19px;}
+nav.bottom button.active{color:var(--green-dark);font-weight:600;}
+
+/* camera */
+.cam-wrap{
+  position:relative;border-radius:12px;overflow:hidden;margin-bottom:14px;
+  background:#000;
+}
+.cam-wrap video{width:100%;display:block;}
+.cam-wrap .cam-frame{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:78%;height:70px;border:2px solid var(--gold);border-radius:8px;
+}
+.cam-close{
+  position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;
+  border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;
+}
+
+.toast{
+  position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;
+  font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s ease;
+  z-index:50;white-space:nowrap;
+}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="views"></div>
+  <nav class="bottom">
+    <button data-view="home"><span class="ic">🧾</span>Prodotti</button>
+    <button data-view="add"><span class="ic">➕</span>Aggiungi</button>
+    <button data-view="stores"><span class="ic">🏬</span>Negozi</button>
+    <button data-view="backup"><span class="ic">💾</span>Backup</button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------- STATE ----------------
+const APP_VERSION = '1.4.0';
+let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
+let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
+let stores = [];         // string[]
+let currentView = 'home';
+let currentProductBarcode = null;
+let camStream = null;
+let camDetectInterval = null;
+
+const $views = document.getElementById('views');
+const $toast = document.getElementById('toast');
+
+function showToast(msg){
+  $toast.textContent = msg;
+  $toast.classList.add('show');
+  setTimeout(()=>$toast.classList.remove('show'), 1800);
+}
+
+function uid(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+}
+
+// ---------------- STORAGE ----------------
+const STORAGE_PREFIX = 'scontrino-app:';
+
+async function loadKey(key, fallback){
+  try{
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    if(raw) return JSON.parse(raw);
+    return fallback;
+  }catch(e){
+    console.error('Errore lettura', key, e);
+    return fallback;
+  }
+}
+async function saveKey(key, value){
+  try{
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  }catch(e){
+    console.error('Errore salvataggio', key, e);
+    showToast('Errore nel salvataggio dei dati (memoria piena?)');
+  }
+}
+async function loadAll(){
+  products = await loadKey('products', []);
+  entries = await loadKey('entries', []);
+  stores = await loadKey('stores', []);
+}
+async function persistProducts(){ await saveKey('products', products); }
+async function persistEntries(){ await saveKey('entries', entries); }
+async function persistStores(){ await saveKey('stores', stores); }
+
+// ---------------- HELPERS ----------------
+function unitLabel(unitType){
+  return unitType === 'kg' ? '/kg' : unitType === 'l' ? '/l' : '/pz';
+}
+function fmtPrice(n){
+  return '€ ' + n.toLocaleString('it-IT', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtDate(d){
+  return new Date(d).toLocaleDateString('it-IT', {day:'2-digit', month:'short', year:'numeric'});
+}
+// normalize quantity+unit to standard unit (kg or l); pieces return 1
+function toStandardQty(qty, qtyUnit){
+  if(qtyUnit === 'g') return qty/1000;
+  if(qtyUnit === 'ml') return qty/1000;
+  return qty; // kg, l, pz
+}
+function pricePerUnit(entry, product){
+  if(product.unitType === 'pz') return entry.price;
+  const stdQty = toStandardQty(entry.qty, entry.qtyUnit);
+  if(!stdQty) return entry.price;
+  return entry.price / stdQty;
+}
+function bestEntryFor(barcode){
+  const product = products.find(p=>p.barcode===barcode);
+  const list = entries.filter(e=>e.barcode===barcode);
+  if(!list.length || !product) return null;
+  let best = list[0], bestVal = pricePerUnit(list[0], product);
+  for(const e of list){
+    const v = pricePerUnit(e, product);
+    if(v < bestVal){ bestVal = v; best = e; }
+  }
+  return {entry:best, value:bestVal, product};
+}
+
+// ---------------- RENDER: HOME ----------------
+function renderHome(){
+  let filterText = window.__homeFilter || '';
+  const q = filterText.toLowerCase();
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(q) || (p.brand && p.brand.toLowerCase().includes(q))
+  );
+
+  let html = `
+    <header class="top">
+      <h1>Scontrino</h1>
+      <span class="tag">confronta i prezzi<br><span style="opacity:.55;">v${APP_VERSION}</span></span>
+    </header>
+    <main>
+      <div class="search-box">
+        <span>🔎</span>
+        <input id="homeSearch" placeholder="Cerca un prodotto..." value="${escapeAttr(filterText)}">
+      </div>
+      <div id="productList"></div>
+    </main>
+  `;
+  $views.innerHTML = html;
+
+  const listEl = document.getElementById('productList');
+  if(products.length === 0){
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="big">Ancora nessun prodotto</div>
+        <p>Tocca "Aggiungi" qui sotto per registrare<br>il primo prezzo trovato al supermercato.</p>
+      </div>`;
+  } else if(filtered.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><p>Nessun prodotto trovato per "${escapeHtml(filterText)}"</p></div>`;
+  } else {
+    listEl.innerHTML = filtered.map(p=>{
+      const best = bestEntryFor(p.barcode);
+      const priceStr = best ? fmtPrice(best.value) + unitLabel(p.unitType) : '—';
+      const storeStr = best ? best.entry.store : 'nessun prezzo salvato';
+      return `
+        <div class="product-card" data-barcode="${escapeAttr(p.barcode)}">
+          <div>
+            ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
+            <div class="name">${escapeHtml(p.name)}</div>
+            <div class="meta">${p.barcode}</div>
+          </div>
+          <div class="price">
+            <div class="val">${priceStr}</div>
+            <div class="store">${escapeHtml(storeStr)}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('homeSearch').addEventListener('input', e=>{
+    window.__homeFilter = e.target.value;
+    renderHome();
+    document.getElementById('homeSearch').focus();
+    const val = document.getElementById('homeSearch').value;
+    document.getElementById('homeSearch').setSelectionRange(val.length,val.length);
+  });
+  listEl.querySelectorAll('.product-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      currentProductBarcode = card.dataset.barcode;
+      setView('product');
+    });
+  });
+}
+
+// ---------------- RENDER: PRODUCT DETAIL ----------------
+function renderProduct(){
+  const product = products.find(p=>p.barcode===currentProductBarcode);
+  if(!product){ setView('home'); return; }
+  const list = entries.filter(e=>e.barcode===product.barcode).sort((a,b)=> new Date(b.date)-new Date(a.date));
+  const best = bestEntryFor(product.barcode);
+
+  let html = `
+    <header class="sub">
+      <button class="back" id="backBtn">←</button>
+      <div class="titles">
+        ${product.brand ? `<span class="brand-tag">${escapeHtml(product.brand)}</span>` : ''}
+        <h2>${escapeHtml(product.name)}</h2>
+      </div>
+    </header>
+    <main>
+      ${product.description ? `<p class="product-desc">${escapeHtml(product.description)}</p>` : ''}
+      <button class="btn-primary" id="addPriceHereBtn" style="margin-bottom:18px;">➕ Aggiungi nuovo prezzo</button>
+  `;
+
+  if(best){
+    html += `
+      <div class="receipt">
+        <div class="best-label">★ Prezzo più basso trovato</div>
+        <div class="best-price">${fmtPrice(best.value)}<span style="font-size:16px;color:var(--ink-soft)">${unitLabel(product.unitType)}</span></div>
+        <div class="best-store">${escapeHtml(best.entry.store)} · ${fmtDate(best.entry.date)}</div>
+      </div>
+      <div class="receipt-zigzag"></div>
+    `;
+  } else {
+    html += `<div class="empty-state"><p>Nessun prezzo ancora registrato per questo prodotto.</p></div>`;
+  }
+
+  html += `<div class="section-label">Storico prezzi (${list.length})</div>`;
+  if(list.length){
+    html += list.map(e=>{
+      const perUnit = pricePerUnit(e, product);
+      const qtyStr = product.unitType === 'pz' ? '' : `${e.qty}${e.qtyUnit}`;
+      return `
+        <div class="history-item">
+          <div>
+            <div class="store">${escapeHtml(e.store)}</div>
+            <div class="date">${fmtDate(e.date)} ${qtyStr ? '· '+qtyStr : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div class="amounts">
+              <div class="price">${fmtPrice(e.price)}</div>
+              <div class="perunit">${fmtPrice(perUnit)}${unitLabel(product.unitType)}</div>
+            </div>
+            <button class="edit" data-id="${e.id}" title="Modifica">✎</button>
+            <button class="del" data-id="${e.id}" title="Elimina">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  html += `
+      <div class="section-label">Prodotto</div>
+      <button class="btn-secondary" id="deleteProductBtn" style="color:var(--red);border-color:var(--red-light);">Elimina prodotto e storico</button>
+    </main>
+  `;
+
+  $views.innerHTML = html;
+  document.getElementById('backBtn').addEventListener('click', ()=>setView('home'));
+  document.getElementById('addPriceHereBtn').addEventListener('click', ()=> startAddPriceForProduct(product.barcode));
+  document.querySelectorAll('.history-item .edit').forEach(btn=>{
+    btn.addEventListener('click', ()=> startEditEntry(btn.dataset.id));
+  });
+  document.querySelectorAll('.history-item .del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      entries = entries.filter(e=>e.id !== btn.dataset.id);
+      await persistEntries();
+      renderProduct();
+      showToast('Prezzo eliminato');
+    });
+  });
+  document.getElementById('deleteProductBtn').addEventListener('click', async ()=>{
+    if(!confirm(`Eliminare "${product.name}" e tutto lo storico prezzi?`)) return;
+    products = products.filter(p=>p.barcode !== product.barcode);
+    entries = entries.filter(e=>e.barcode !== product.barcode);
+    await persistProducts();
+    await persistEntries();
+    showToast('Prodotto eliminato');
+    setView('home');
+  });
+}
+
+// ---------------- RENDER: ADD ----------------
+let addState = {
+  barcode:'',
+  matchedProduct:null,
+  newName:'',
+  newBrand:'',
+  newDescription:'',
+  newUnitType:'kg',
+  store:'',
+  price:'',
+  qty:'',
+  qtyUnit:'g',
+  date: todayInputValue(),
+  editingEntryId: null,
+  returnToProduct: null
+};
+
+function resetAddState(){
+  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null};
+}
+
+function todayInputValue(){
+  return new Date().toISOString().slice(0,10);
+}
+function toDateInputValue(isoString){
+  return new Date(isoString).toISOString().slice(0,10);
+}
+
+function startAddPriceForProduct(barcode){
+  const product = products.find(p=>p.barcode===barcode);
+  if(!product) return;
+  addState = {
+    barcode: barcode,
+    matchedProduct: product,
+    newName:'', newBrand:'', newDescription:'',
+    newUnitType: product.unitType,
+    store:'', price:'', qty:'',
+    qtyUnit: product.unitType === 'l' ? 'ml' : 'g',
+    date: todayInputValue(),
+    editingEntryId: null,
+    returnToProduct: barcode
+  };
+  setView('add', false);
+}
+
+function startEditEntry(entryId){
+  const entry = entries.find(e=>e.id===entryId);
+  if(!entry) return;
+  const product = products.find(p=>p.barcode===entry.barcode);
+  addState = {
+    barcode: entry.barcode,
+    matchedProduct: product || null,
+    newName:'', newBrand:'', newDescription:'',
+    newUnitType: product ? product.unitType : 'kg',
+    store: entry.store,
+    price: String(entry.price).replace('.', ','),
+    qty: entry.qtyUnit === 'pz' ? '' : String(entry.qty),
+    qtyUnit: entry.qtyUnit === 'pz' ? (product && product.unitType==='l' ? 'ml' : 'g') : entry.qtyUnit,
+    date: toDateInputValue(entry.date),
+    editingEntryId: entry.id
+  };
+  setView('add', false);
+}
+
+function renderAdd(){
+  const isKnown = !!addState.matchedProduct;
+  const unitType = isKnown ? addState.matchedProduct.unitType : addState.newUnitType;
+  const editing = !!addState.editingEntryId;
+  const lockedToProduct = editing || !!addState.returnToProduct;
+
+  let html;
+  if(lockedToProduct){
+    html = `
+      <header class="sub">
+        <button class="back" id="backBtn">←</button>
+        <h2>${editing ? 'Modifica prezzo' : 'Nuovo prezzo'}</h2>
+      </header>
+      <main>
+        <div class="field">
+          <label>Prodotto</label>
+          <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:600;padding:4px 2px;">${addState.matchedProduct ? escapeHtml(addState.matchedProduct.name) : addState.barcode}</div>
+        </div>
+        <div id="camContainer"></div>
+        <div id="productFields"></div>
+      </main>
+    `;
+  } else {
+    html = `
+      <header class="top"><h1>Aggiungi prezzo</h1></header>
+      <main>
+        <div class="field">
+          <label>Codice a barre</label>
+          <div class="barcode-row">
+            <input id="barcodeInput" placeholder="Scrivi o scansiona il codice" value="${escapeAttr(addState.barcode)}" inputmode="numeric">
+            <button class="scan-btn" id="scanBtn">📷</button>
+          </div>
+        </div>
+        <div id="camContainer"></div>
+        <div id="productFields"></div>
+      </main>
+    `;
+  }
+  $views.innerHTML = html;
+  renderProductFields();
+
+  if(lockedToProduct){
+    document.getElementById('backBtn').addEventListener('click', ()=>{
+      const barcode = addState.barcode;
+      resetAddState();
+      currentProductBarcode = barcode;
+      setView('product');
+    });
+  } else {
+    document.getElementById('barcodeInput').addEventListener('input', e=>{
+      addState.barcode = e.target.value.trim();
+      addState.matchedProduct = products.find(p=>p.barcode === addState.barcode) || null;
+      renderProductFields();
+    });
+    document.getElementById('scanBtn').addEventListener('click', toggleCamera);
+  }
+}
+
+function renderProductFields(){
+  const container = document.getElementById('productFields');
+  if(!addState.barcode){
+    container.innerHTML = `<p class="hint">Inserisci prima il codice a barre del prodotto.</p>`;
+    updateSaveState();
+    return;
+  }
+
+  const isKnown = !!addState.matchedProduct;
+  let html = '';
+
+  if(isKnown){
+    html += `
+      <div class="field">
+        <label>Prodotto</label>
+        <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:600;padding:4px 2px;">${escapeHtml(addState.matchedProduct.name)}</div>
+        ${addState.matchedProduct.brand ? `<div style="font-size:13px;color:var(--ink-soft);padding:0 2px;">${escapeHtml(addState.matchedProduct.brand)}</div>` : ''}
+        ${addState.matchedProduct.description ? `<div style="font-size:12.5px;color:var(--ink-soft);padding:4px 2px 0;line-height:1.4;">${escapeHtml(addState.matchedProduct.description)}</div>` : ''}
+      </div>`;
+  } else {
+    html += `
+      <p class="hint">Codice non riconosciuto: è un prodotto nuovo. Compila i dettagli qui sotto.</p>
+      <div class="field">
+        <label>Nome prodotto</label>
+        <input id="nameInput" placeholder="Es. Passata di pomodoro" value="${escapeAttr(addState.newName)}">
+      </div>
+      <div class="field">
+        <label>Marca prodotto</label>
+        <input id="brandInput" placeholder="Es. Mutti" value="${escapeAttr(addState.newBrand)}">
+      </div>
+      <div class="field">
+        <label>Descrizione aggiuntiva</label>
+        <input id="descriptionInput" placeholder="Es. Confezione da 3 x 700g, bio" value="${escapeAttr(addState.newDescription)}">
+      </div>
+      <div class="field">
+        <label>Si misura a...</label>
+        <div class="unit-toggle" id="unitTypeToggle">
+          <button data-u="kg" class="${addState.newUnitType==='kg'?'active':''}">Peso (kg)</button>
+          <button data-u="l" class="${addState.newUnitType==='l'?'active':''}">Volume (l)</button>
+          <button data-u="pz" class="${addState.newUnitType==='pz'?'active':''}">Pezzo</button>
+        </div>
+      </div>`;
+  }
+
+  const unitType = isKnown ? addState.matchedProduct.unitType : addState.newUnitType;
+
+  html += `
+    <div class="field">
+      <label>Supermercato</label>
+      <div class="chip-list" id="storeChips">
+        ${stores.map(s=>`<div class="chip ${addState.store===s?'active':''}" data-s="${escapeAttr(s)}">${escapeHtml(s)}</div>`).join('')}
+      </div>
+      <input id="newStoreInline" placeholder="Oppure aggiungi un nuovo negozio..." style="margin-top:8px;" value="">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Prezzo (€)</label>
+        <input id="priceInput" type="number" inputmode="decimal" step="0.01" placeholder="0,00" value="${addState.price}">
+      </div>
+      ${unitType !== 'pz' ? `
+      <div class="field">
+        <label>Quantità</label>
+        <div style="display:flex;gap:6px;">
+          <input id="qtyInput" type="number" inputmode="decimal" placeholder="0" value="${addState.qty}" style="flex:1;">
+          <select id="qtyUnitSelect" style="width:70px;">
+            ${unitType==='kg' ? `
+              <option value="g" ${addState.qtyUnit==='g'?'selected':''}>g</option>
+              <option value="kg" ${addState.qtyUnit==='kg'?'selected':''}>kg</option>` : `
+              <option value="ml" ${addState.qtyUnit==='ml'?'selected':''}>ml</option>
+              <option value="l" ${addState.qtyUnit==='l'?'selected':''}>l</option>`}
+          </select>
+        </div>
+      </div>` : ''}
+    </div>
+    <div class="field">
+      <label>Data</label>
+      <input id="dateInput" type="date" value="${addState.date}" max="${todayInputValue()}">
+    </div>
+    <button class="btn-primary" id="saveEntryBtn">${addState.editingEntryId ? 'Salva modifiche' : 'Salva prezzo'}</button>
+    ${(addState.editingEntryId || addState.returnToProduct) ? `<button class="btn-secondary" id="cancelEditBtn">Annulla</button>` : ''}
+  `;
+
+  container.innerHTML = html;
+
+  if(!isKnown){
+    document.getElementById('nameInput').addEventListener('input', e=> addState.newName = e.target.value);
+    document.getElementById('brandInput').addEventListener('input', e=> addState.newBrand = e.target.value);
+    document.getElementById('descriptionInput').addEventListener('input', e=> addState.newDescription = e.target.value);
+    document.getElementById('unitTypeToggle').querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        addState.newUnitType = btn.dataset.u;
+        addState.qtyUnit = btn.dataset.u === 'kg' ? 'g' : 'ml';
+        renderProductFields();
+      });
+    });
+  }
+
+  container.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      addState.store = addState.store === chip.dataset.s ? '' : chip.dataset.s;
+      renderProductFields();
+    });
+  });
+  document.getElementById('newStoreInline').addEventListener('input', e=>{
+    addState.store = e.target.value;
+  });
+  document.getElementById('priceInput').addEventListener('input', e=> addState.price = e.target.value);
+  const qtyInput = document.getElementById('qtyInput');
+  if(qtyInput) qtyInput.addEventListener('input', e=> addState.qty = e.target.value);
+  const qtyUnitSelect = document.getElementById('qtyUnitSelect');
+  if(qtyUnitSelect) qtyUnitSelect.addEventListener('change', e=> addState.qtyUnit = e.target.value);
+  document.getElementById('dateInput').addEventListener('change', e=> addState.date = e.target.value);
+
+  document.getElementById('saveEntryBtn').addEventListener('click', saveEntry);
+  const cancelBtn = document.getElementById('cancelEditBtn');
+  if(cancelBtn){
+    cancelBtn.addEventListener('click', ()=>{
+      const barcode = addState.barcode;
+      resetAddState();
+      currentProductBarcode = barcode;
+      setView('product');
+    });
+  }
+}
+
+function updateSaveState(){}
+
+async function saveEntry(){
+  const isKnown = !!addState.matchedProduct;
+  const unitType = isKnown ? addState.matchedProduct.unitType : addState.newUnitType;
+  const editing = !!addState.editingEntryId;
+
+  if(!addState.barcode){ showToast('Inserisci il codice a barre'); return; }
+  if(!isKnown && !addState.newName.trim()){ showToast('Dai un nome al prodotto'); return; }
+  if(!addState.store.trim()){ showToast('Indica il supermercato'); return; }
+  const priceNum = parseFloat(String(addState.price).replace(',', '.'));
+  if(!priceNum || priceNum <= 0){ showToast('Inserisci un prezzo valido'); return; }
+  let qtyNum = 1;
+  if(unitType !== 'pz'){
+    qtyNum = parseFloat(String(addState.qty).replace(',', '.'));
+    if(!qtyNum || qtyNum <= 0){ showToast('Inserisci la quantità'); return; }
+  }
+
+  // ensure product exists
+  if(!isKnown){
+    products.push({
+      barcode: addState.barcode,
+      name: addState.newName.trim(),
+      brand: addState.newBrand.trim(),
+      description: addState.newDescription.trim(),
+      unitType: addState.newUnitType
+    });
+    await persistProducts();
+  }
+  // ensure store exists in list
+  const storeName = addState.store.trim();
+  if(!stores.includes(storeName)){
+    stores.push(storeName);
+    await persistStores();
+  }
+
+  const entryDate = addState.date ? new Date(addState.date + 'T12:00:00').toISOString() : new Date().toISOString();
+
+  if(editing){
+    const idx = entries.findIndex(e=>e.id === addState.editingEntryId);
+    if(idx !== -1){
+      entries[idx] = {
+        ...entries[idx],
+        store: storeName,
+        price: priceNum,
+        qty: qtyNum,
+        qtyUnit: unitType==='pz' ? 'pz' : addState.qtyUnit,
+        date: entryDate
+      };
+    }
+    await persistEntries();
+    showToast('Prezzo aggiornato ✓');
+    stopCamera();
+    const barcode = addState.barcode;
+    resetAddState();
+    currentProductBarcode = barcode;
+    setView('product');
+    return;
+  }
+
+  entries.push({
+    id: uid(),
+    barcode: addState.barcode,
+    store: storeName,
+    price: priceNum,
+    qty: qtyNum,
+    qtyUnit: unitType==='pz' ? 'pz' : addState.qtyUnit,
+    date: entryDate
+  });
+  await persistEntries();
+
+  showToast('Prezzo salvato ✓');
+  stopCamera();
+
+  if(addState.returnToProduct){
+    const barcode = addState.returnToProduct;
+    resetAddState();
+    currentProductBarcode = barcode;
+    setView('product');
+    return;
+  }
+
+  resetAddState();
+  setView('home');
+}
+
+// ---------------- RENDER: STORES ----------------
+function renderStores(){
+  let html = `
+    <header class="top"><h1>Negozi</h1></header>
+    <main>
+      <div class="field">
+        <label>Aggiungi supermercato</label>
+        <div class="barcode-row">
+          <input id="newStoreName" placeholder="Es. Esselunga Via Roma">
+          <button class="scan-btn" id="addStoreBtn" style="font-size:14px;">Aggiungi</button>
+        </div>
+      </div>
+      <div class="section-label">Elenco (${stores.length})</div>
+      <div id="storesList"></div>
+    </main>
+  `;
+  $views.innerHTML = html;
+
+  const listEl = document.getElementById('storesList');
+  if(stores.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><p>Nessun supermercato ancora aggiunto.</p></div>`;
+  } else {
+    listEl.innerHTML = stores.map(s=>`
+      <div class="store-row">
+        <div class="name">${escapeHtml(s)}</div>
+        <button data-s="${escapeAttr(s)}">Elimina</button>
+      </div>`).join('');
+  }
+
+  document.getElementById('addStoreBtn').addEventListener('click', async ()=>{
+    const input = document.getElementById('newStoreName');
+    const name = input.value.trim();
+    if(!name){ showToast('Scrivi un nome'); return; }
+    if(stores.includes(name)){ showToast('Già presente'); return; }
+    stores.push(name);
+    await persistStores();
+    renderStores();
+    showToast('Negozio aggiunto');
+  });
+  listEl.querySelectorAll('.store-row button').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const name = btn.dataset.s;
+      const inUse = entries.some(e=>e.store === name);
+      if(inUse && !confirm(`"${name}" ha prezzi salvati. Eliminarlo comunque dall'elenco?`)) return;
+      stores = stores.filter(s=>s!==name);
+      await persistStores();
+      renderStores();
+    });
+  });
+}
+
+// ---------------- RENDER: BACKUP ----------------
+function renderBackup(){
+  const totalEntries = entries.length;
+  const totalProducts = products.length;
+  let html = `
+    <header class="top"><h1>Backup</h1></header>
+    <main>
+      <p class="hint" style="margin-top:-4px;">
+        Ogni telefono salva i dati solo su se stesso. Esporta un file di backup ogni tanto
+        per non rischiare di perdere tutto se Chrome cancella la cache del dispositivo.
+      </p>
+
+      <div class="section-label">Esporta</div>
+      <div class="receipt" style="margin-bottom:16px;">
+        <div class="best-label">Situazione attuale</div>
+        <div class="best-price" style="font-size:22px;">${totalProducts} prodotti</div>
+        <div class="best-store">${totalEntries} prezzi registrati · ${stores.length} supermercati</div>
+      </div>
+      <button class="btn-primary" id="exportBtn">⬇︎ Scarica backup (.json)</button>
+
+      <div class="section-label">Ripristina</div>
+      <p class="hint">
+        Importando un backup, i dati attualmente presenti su <b>questo</b> dispositivo verranno
+        sostituiti da quelli del file. Operazione irreversibile.
+      </p>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+      <button class="btn-secondary" id="importBtn">⬆︎ Ripristina da file</button>
+
+      <div class="section-label">Info</div>
+      <p class="hint">Versione app: <b>${APP_VERSION}</b></p>
+    </main>
+  `;
+  $views.innerHTML = html;
+
+  document.getElementById('exportBtn').addEventListener('click', exportBackup);
+  const fileInput = document.getElementById('importFile');
+  document.getElementById('importBtn').addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(file) importBackup(file);
+    fileInput.value = '';
+  });
+}
+
+function exportBackup(){
+  const payload = {
+    app: 'scontrino-app',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    products, entries, stores
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().slice(0,10);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `scontrino-backup-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup scaricato ✓');
+}
+
+function importBackup(file){
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    let data;
+    try{
+      data = JSON.parse(e.target.result);
+    }catch(err){
+      showToast('File non valido: non è un JSON leggibile');
+      return;
+    }
+    if(!data || !Array.isArray(data.products) || !Array.isArray(data.entries) || !Array.isArray(data.stores)){
+      showToast('File non valido: struttura dati non riconosciuta');
+      return;
+    }
+    if(!confirm(`Sostituire i dati di questo dispositivo con il backup (${data.products.length} prodotti, ${data.entries.length} prezzi)?`)) return;
+
+    products = data.products;
+    entries = data.entries;
+    stores = data.stores;
+    await persistProducts();
+    await persistEntries();
+    await persistStores();
+    showToast('Backup ripristinato ✓');
+    renderBackup();
+  };
+  reader.onerror = ()=> showToast('Errore nella lettura del file');
+  reader.readAsText(file);
+}
+
+// ---------------- CAMERA / BARCODE SCAN ----------------
+async function toggleCamera(){
+  const container = document.getElementById('camContainer');
+  if(camStream){ stopCamera(); container.innerHTML=''; return; }
+
+  if(!('BarcodeDetector' in window)){
+    showToast('Fotocamera non supportata: inserisci il codice a mano');
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="cam-wrap">
+      <video id="camVideo" autoplay playsinline muted></video>
+      <div class="cam-frame"></div>
+      <button class="cam-close" id="camCloseBtn">Chiudi</button>
+    </div>`;
+  document.getElementById('camCloseBtn').addEventListener('click', ()=>{ stopCamera(); container.innerHTML=''; });
+
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video = document.getElementById('camVideo');
+    video.srcObject = camStream;
+
+    const detector = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128']});
+    camDetectInterval = setInterval(async ()=>{
+      try{
+        const codes = await detector.detect(video);
+        if(codes.length){
+          const value = codes[0].rawValue;
+          stopCamera();
+          container.innerHTML = '';
+          addState.barcode = value;
+          addState.matchedProduct = products.find(p=>p.barcode === value) || null;
+          document.getElementById('barcodeInput').value = value;
+          renderProductFields();
+          showToast('Codice rilevato: ' + value);
+        }
+      }catch(err){ /* ignore single-frame errors */ }
+    }, 400);
+  }catch(err){
+    showToast('Impossibile accedere alla fotocamera');
+    container.innerHTML = '';
+  }
+}
+function stopCamera(){
+  if(camDetectInterval){ clearInterval(camDetectInterval); camDetectInterval=null; }
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+}
+
+// ---------------- NAV / VIEW SWITCH ----------------
+function setView(view, resetAdd=true){
+  stopCamera();
+  currentView = view;
+  document.querySelectorAll('nav.bottom button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.view === view || (view==='product' && b.dataset.view==='home'));
+  });
+  if(view === 'home') renderHome();
+  else if(view === 'add'){ if(resetAdd) resetAddState(); renderAdd(); }
+  else if(view === 'stores') renderStores();
+  else if(view === 'product') renderProduct();
+  else if(view === 'backup') renderBackup();
+}
+
+document.querySelectorAll('nav.bottom button').forEach(btn=>{
+  btn.addEventListener('click', ()=> setView(btn.dataset.view));
+});
+
+// ---------------- UTIL ----------------
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+// ---------------- INIT ----------------
+(async function init(){
+  $views.innerHTML = `<div class="empty-state"><p>Caricamento...</p></div>`;
+  await loadAll();
+  setView('home');
+})();
+
+// ---------------- PWA: SERVICE WORKER ----------------
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{
+      // Non disponibile (es. aperto da file:// senza hosting): l'app funziona comunque,
+      // solo senza cache automatica per l'uso offline della prima apertura.
+    });
+  });
+}
+</script>
+</body>
+</html>
