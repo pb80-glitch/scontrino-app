@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -717,6 +717,16 @@ function toDateInputValue(isoString){
 let lookupTimer = null;
 let lastLookedUpBarcode = null;
 
+// Estrae numero+unità da stringhe tipo "500 g", "1 l", "1,5kg" → {num, unit} oppure null
+function parseQuantityString(qStr){
+  if(!qStr) return null;
+  const m = String(qStr).match(/([\d]+[.,]?[\d]*)\s*(kg|g|ml|l)\b/i);
+  if(!m) return null;
+  const num = parseFloat(m[1].replace(',', '.'));
+  if(!num || isNaN(num)) return null;
+  return {num, unit: m[2].toLowerCase()};
+}
+
 function scheduleOnlineLookup(barcode){
   if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
   // codici a barre reali hanno di solito 8, 12 o 13 cifre
@@ -758,11 +768,13 @@ async function runOnlineLookup(barcode){
     addState.newBrand = p.brands ? p.brands.split(',')[0].trim() : '';
     addState.newDescription = p.quantity || (p.categories ? p.categories.split(',')[0].trim() : '');
 
-    // stima il tipo di unità dalla quantità dichiarata (es. "500 g", "1 l")
-    if(p.quantity){
-      const q = p.quantity.toLowerCase();
-      if(/\bl\b|litri|ml/.test(q)) addState.newUnitType = 'l';
-      else if(/\bg\b|\bkg\b|grammi/.test(q)) addState.newUnitType = 'kg';
+    // legge quantità + unità dichiarate (es. "500 g", "1 l") e precompila sia il tipo prodotto
+    // sia il campo quantità dell'inserimento prezzo, per evitare errori di unità di misura
+    const parsedQty = parseQuantityString(p.quantity);
+    if(parsedQty){
+      addState.newUnitType = (parsedQty.unit === 'l' || parsedQty.unit === 'ml') ? 'l' : 'kg';
+      addState.qty = String(parsedQty.num);
+      addState.qtyUnit = parsedQty.unit;
     }
 
     addState.lookupStatus = 'found';
