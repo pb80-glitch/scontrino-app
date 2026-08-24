@@ -119,12 +119,34 @@ main{flex:1;padding:0 20px;}
   padding:14px 16px;
   margin-bottom:10px;
   display:flex;
-  justify-content:space-between;
-  align-items:center;
+  flex-direction:column;
   cursor:pointer;
   transition:transform .1s ease;
 }
 .product-card:active{transform:scale(0.98);}
+.product-card-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  width:100%;
+}
+.product-card.has-offer{
+  border-color:var(--gold);
+  background:linear-gradient(180deg, var(--gold-light) 0%, var(--paper) 60%);
+}
+.offer-line{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px dashed var(--gold);
+  font-family:'Space Mono',monospace;
+  font-size:11.5px;
+  font-weight:700;
+  color:#8A5C14;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
 .product-card .name{
   font-family:'Fraunces',serif;
   font-weight:600;
@@ -442,7 +464,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.10.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -543,6 +565,38 @@ function daysSince(isoDate){
   return Math.floor(diffMs / (1000*60*60*24));
 }
 
+const OFFER_VALIDITY_DAYS = 15;
+
+// Ritorna l'offerta attiva (entro 15gg) più conveniente per un prodotto, solo se batte
+// il miglior prezzo "normale" registrato. Altrimenti null (nessun badge da mostrare).
+function activeOfferHighlight(barcode){
+  const product = products.find(p=>p.barcode===barcode);
+  if(!product) return null;
+
+  const all = entries.filter(e=>e.barcode===barcode);
+  const regular = all.filter(e=>!e.isOffer);
+  const activeOffers = all.filter(e=>e.isOffer && daysSince(e.date) <= OFFER_VALIDITY_DAYS);
+  if(!activeOffers.length) return null;
+
+  let bestOffer = activeOffers[0], bestOfferVal = pricePerUnit(activeOffers[0], product);
+  for(const e of activeOffers){
+    const v = pricePerUnit(e, product);
+    if(v < bestOfferVal){ bestOfferVal = v; bestOffer = e; }
+  }
+
+  if(regular.length){
+    let bestRegVal = pricePerUnit(regular[0], product);
+    for(const e of regular){
+      const v = pricePerUnit(e, product);
+      if(v < bestRegVal) bestRegVal = v;
+    }
+    if(bestOfferVal >= bestRegVal) return null; // l'offerta non è più conveniente, niente badge
+  }
+
+  const daysLeft = Math.max(OFFER_VALIDITY_DAYS - daysSince(bestOffer.date), 0);
+  return {entry: bestOffer, value: bestOfferVal, daysLeft};
+}
+
 // ---------------- RENDER: HOME ----------------
 function renderHome(){
   let filterText = window.__homeFilter || '';
@@ -580,17 +634,25 @@ function renderHome(){
       const best = bestEntryFor(p.barcode);
       const priceStr = best ? fmtPrice(best.value) + unitLabel(p.unitType) : '—';
       const storeStr = best ? best.entry.store : 'nessun prezzo salvato';
+      const offerHi = activeOfferHighlight(p.barcode);
       return `
-        <div class="product-card" data-barcode="${escapeAttr(p.barcode)}">
-          <div>
-            ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
-            <div class="name">${escapeHtml(p.name)}</div>
-            <div class="meta">${isInternalBarcode(p.barcode) ? 'Prodotto sfuso · senza codice' : p.barcode}</div>
+        <div class="product-card ${offerHi ? 'has-offer' : ''}" data-barcode="${escapeAttr(p.barcode)}">
+          <div class="product-card-row">
+            <div>
+              ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
+              <div class="name">${escapeHtml(p.name)}</div>
+              <div class="meta">${isInternalBarcode(p.barcode) ? 'Prodotto sfuso · senza codice' : p.barcode}</div>
+            </div>
+            <div class="price">
+              <div class="val">${priceStr}</div>
+              <div class="store">${escapeHtml(storeStr)}</div>
+            </div>
           </div>
-          <div class="price">
-            <div class="val">${priceStr}</div>
-            <div class="store">${escapeHtml(storeStr)}</div>
-          </div>
+          ${offerHi ? `
+          <div class="offer-line">
+            <span>🏷️ ${fmtPrice(offerHi.value)}${unitLabel(p.unitType)} da ${escapeHtml(offerHi.entry.store)}</span>
+            <span>${offerHi.daysLeft === 0 ? 'scade oggi' : `scade tra ${offerHi.daysLeft}g`}</span>
+          </div>` : ''}
         </div>`;
     }).join('');
   }
