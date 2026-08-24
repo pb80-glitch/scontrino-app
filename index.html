@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -462,6 +462,12 @@ function showToast(msg){
 
 function uid(){
   return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2));
+}
+function generateInternalBarcode(){
+  return 'senza-codice-' + uid().slice(0, 8);
+}
+function isInternalBarcode(barcode){
+  return typeof barcode === 'string' && barcode.startsWith('senza-codice-');
 }
 
 // ---------------- STORAGE ----------------
@@ -570,7 +576,7 @@ function renderHome(){
           <div>
             ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
             <div class="name">${escapeHtml(p.name)}</div>
-            <div class="meta">${p.barcode}</div>
+            <div class="meta">${isInternalBarcode(p.barcode) ? 'Prodotto sfuso · senza codice' : p.barcode}</div>
           </div>
           <div class="price">
             <div class="val">${priceStr}</div>
@@ -698,11 +704,13 @@ let addState = {
   editingEntryId: null,
   returnToProduct: null,
   lookupStatus: null,
-  knownDescriptionDraft: null
+  knownDescriptionDraft: null,
+  showNameSearch: false,
+  nameSearchQuery: ''
 };
 
 function resetAddState(){
-  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null, knownDescriptionDraft: null};
+  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null, knownDescriptionDraft: null, showNameSearch: false, nameSearchQuery: ''};
   lastLookedUpBarcode = null;
   if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
 }
@@ -851,22 +859,46 @@ function renderAdd(){
       </main>
     `;
   } else {
+    const isNoBarcode = addState.barcode.startsWith('senza-codice-');
     html = `
       <header class="top"><h1>Aggiungi prezzo</h1></header>
       <main>
+        ${isNoBarcode ? `
+        <div class="field">
+          <label>Codice a barre</label>
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--green-light);border:1px solid var(--green);border-radius:10px;padding:12px 14px;">
+            <span style="font-size:13.5px;color:var(--green-dark);">🏷️ Prodotto senza codice a barre</span>
+            <button id="cancelNoBarcodeBtn" style="border:none;background:none;color:var(--green-dark);text-decoration:underline;font-size:12.5px;cursor:pointer;">Annulla</button>
+          </div>
+        </div>` : `
         <div class="field">
           <label>Codice a barre</label>
           <div class="barcode-row">
             <input id="barcodeInput" placeholder="Scrivi o scansiona il codice" value="${escapeAttr(addState.barcode)}" inputmode="numeric">
             <button class="scan-btn" id="scanBtn">📷</button>
           </div>
-        </div>
+        </div>`}
         <div id="camContainer"></div>
+
+        ${!isNoBarcode ? `
+        <div style="text-align:center;margin:-6px 0 8px;">
+          <button id="toggleNameSearchBtn" style="border:none;background:none;color:var(--green-dark);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px;">
+            ${addState.showNameSearch ? '✕ Chiudi ricerca per nome' : 'Oppure cerca un prodotto già censito per nome'}
+          </button>
+        </div>
+        <div id="nameSearchBlock"></div>
+        <div style="text-align:center;margin:0 0 18px;">
+          <button id="noBarcodeBtn" style="border:none;background:none;color:var(--ink-soft);font-size:12.5px;text-decoration:underline;cursor:pointer;padding:6px;">
+            Prodotto sfuso senza codice a barre? Aggiungilo così
+          </button>
+        </div>` : ''}
+
         <div id="productFields"></div>
       </main>
     `;
   }
   $views.innerHTML = html;
+  renderNameSearchBlock();
   renderProductFields();
 
   if(lockedToProduct){
@@ -875,6 +907,12 @@ function renderAdd(){
       resetAddState();
       currentProductBarcode = barcode;
       setView('product');
+    });
+  } else if(addState.barcode.startsWith('senza-codice-')){
+    document.getElementById('cancelNoBarcodeBtn').addEventListener('click', ()=>{
+      addState.barcode = '';
+      addState.matchedProduct = null;
+      renderAdd();
     });
   } else {
     document.getElementById('barcodeInput').addEventListener('input', e=>{
@@ -886,7 +924,70 @@ function renderAdd(){
       scheduleOnlineLookup(addState.barcode);
     });
     document.getElementById('scanBtn').addEventListener('click', toggleCamera);
+    document.getElementById('toggleNameSearchBtn').addEventListener('click', ()=>{
+      addState.showNameSearch = !addState.showNameSearch;
+      renderAdd();
+    });
+    document.getElementById('noBarcodeBtn').addEventListener('click', ()=>{
+      addState.barcode = generateInternalBarcode();
+      addState.matchedProduct = null;
+      addState.lookupStatus = null;
+      addState.knownDescriptionDraft = null;
+      addState.showNameSearch = false;
+      renderAdd();
+    });
   }
+}
+
+function renderNameSearchBlock(){
+  const block = document.getElementById('nameSearchBlock');
+  if(!block || !addState.showNameSearch) return;
+
+  const query = (addState.nameSearchQuery || '').toLowerCase();
+  const matches = query.length < 2 ? [] : products.filter(p=>
+    p.name.toLowerCase().includes(query) || (p.brand && p.brand.toLowerCase().includes(query))
+  ).slice(0, 6);
+
+  block.innerHTML = `
+    <div class="field">
+      <label>Cerca per nome o marca</label>
+      <input id="nameSearchInput" placeholder="Es. passata, Mutti..." value="${escapeAttr(addState.nameSearchQuery || '')}">
+    </div>
+    <div id="nameSearchResults">
+      ${query.length < 2 ? `<p class="hint">Scrivi almeno 2 lettere per cercare.</p>` :
+        matches.length === 0 ? `<p class="hint">Nessun prodotto censito corrisponde alla ricerca.</p>` :
+        matches.map(p=>`
+          <div class="product-card" data-barcode="${escapeAttr(p.barcode)}" style="margin-bottom:8px;">
+            <div>
+              ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
+              <div class="name">${escapeHtml(p.name)}</div>
+            </div>
+          </div>`).join('')
+      }
+    </div>
+  `;
+
+  document.getElementById('nameSearchInput').addEventListener('input', e=>{
+    addState.nameSearchQuery = e.target.value;
+    renderNameSearchBlock();
+  });
+  block.querySelectorAll('.product-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const barcode = card.dataset.barcode;
+      addState.barcode = barcode;
+      addState.matchedProduct = products.find(p=>p.barcode === barcode) || null;
+      addState.lookupStatus = null;
+      addState.knownDescriptionDraft = null;
+      addState.showNameSearch = false;
+      addState.nameSearchQuery = '';
+      const barcodeInput = document.getElementById('barcodeInput');
+      if(barcodeInput) barcodeInput.value = barcode;
+      document.getElementById('nameSearchBlock').innerHTML = '';
+      document.getElementById('toggleNameSearchBtn').textContent = 'Oppure cerca un prodotto già censito per nome';
+      renderProductFields();
+      showToast('Prodotto selezionato ✓');
+    });
+  });
 }
 
 function renderProductFields(){
@@ -909,7 +1010,7 @@ function renderProductFields(){
         ${addState.matchedProduct.brand ? `<div style="font-size:13px;color:var(--ink-soft);padding:0 2px;">${escapeHtml(addState.matchedProduct.brand)}</div>` : ''}
       </div>
       <div class="field">
-        <label>Descrizione aggiuntiva</label>
+        <label>Descrizione aggiuntiva (opzionale)</label>
         <input id="knownDescriptionInput" placeholder="Es. Confezione da 3 x 700g, bio" value="${escapeAttr(descValue)}">
       </div>`;
   } else {
@@ -924,11 +1025,11 @@ function renderProductFields(){
         <input id="nameInput" placeholder="Es. Passata di pomodoro" value="${escapeAttr(addState.newName)}">
       </div>
       <div class="field">
-        <label>Marca prodotto</label>
+        <label>Marca prodotto (opzionale)</label>
         <input id="brandInput" placeholder="Es. Mutti" value="${escapeAttr(addState.newBrand)}">
       </div>
       <div class="field">
-        <label>Descrizione aggiuntiva</label>
+        <label>Descrizione aggiuntiva (opzionale)</label>
         <input id="descriptionInput" placeholder="Es. Confezione da 3 x 700g, bio" value="${escapeAttr(addState.newDescription)}">
       </div>
       <div class="field">
