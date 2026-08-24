@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.9.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -524,14 +524,23 @@ function pricePerUnit(entry, product){
 }
 function bestEntryFor(barcode){
   const product = products.find(p=>p.barcode===barcode);
-  const list = entries.filter(e=>e.barcode===barcode);
-  if(!list.length || !product) return null;
-  let best = list[0], bestVal = pricePerUnit(list[0], product);
-  for(const e of list){
+  const all = entries.filter(e=>e.barcode===barcode);
+  if(!all.length || !product) return null;
+
+  const regular = all.filter(e=>!e.isOffer);
+  const pool = regular.length ? regular : all; // se hai salvato solo offerte, usale comunque
+
+  let best = pool[0], bestVal = pricePerUnit(pool[0], product);
+  for(const e of pool){
     const v = pricePerUnit(e, product);
     if(v < bestVal){ bestVal = v; best = e; }
   }
-  return {entry:best, value:bestVal, product};
+  return {entry:best, value:bestVal, product, isOnlyOffers: !regular.length};
+}
+
+function daysSince(isoDate){
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  return Math.floor(diffMs / (1000*60*60*24));
 }
 
 // ---------------- RENDER: HOME ----------------
@@ -622,11 +631,14 @@ function renderProduct(){
   `;
 
   if(best){
+    const age = daysSince(best.entry.date);
+    const isStale = age > 60;
     html += `
       <div class="receipt">
-        <div class="best-label">★ Prezzo più basso trovato</div>
+        <div class="best-label">★ ${best.isOnlyOffers ? 'Offerta trovata (nessun prezzo normale registrato)' : 'Prezzo più basso trovato'}</div>
         <div class="best-price">${fmtPrice(best.value)}<span style="font-size:16px;color:var(--ink-soft)">${unitLabel(product.unitType)}</span></div>
-        <div class="best-store">${escapeHtml(best.entry.store)} · ${fmtDate(best.entry.date)}</div>
+        <div class="best-store">${escapeHtml(best.entry.store)} · ${fmtDate(best.entry.date)}${best.entry.isOffer ? ' · 🏷️ Offerta' : ''}</div>
+        ${isStale ? `<div style="margin-top:10px;font-size:12.5px;color:var(--red);line-height:1.4;">⚠️ Risale a ${age} giorni fa — potrebbe non essere più valido, verifica prima di farci affidamento.</div>` : ''}
       </div>
       <div class="receipt-zigzag"></div>
     `;
@@ -642,7 +654,7 @@ function renderProduct(){
       return `
         <div class="history-item">
           <div>
-            <div class="store">${escapeHtml(e.store)}</div>
+            <div class="store">${escapeHtml(e.store)}${e.isOffer ? ' <span style="color:var(--gold);font-size:11px;font-weight:600;">🏷️ OFFERTA</span>' : ''}</div>
             <div class="date">${fmtDate(e.date)} ${qtyStr ? '· '+qtyStr : ''}</div>
           </div>
           <div style="display:flex;align-items:center;">
@@ -706,11 +718,12 @@ let addState = {
   lookupStatus: null,
   knownDescriptionDraft: null,
   showNameSearch: false,
-  nameSearchQuery: ''
+  nameSearchQuery: '',
+  isOffer: false
 };
 
 function resetAddState(){
-  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null, knownDescriptionDraft: null, showNameSearch: false, nameSearchQuery: ''};
+  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null, knownDescriptionDraft: null, showNameSearch: false, nameSearchQuery: '', isOffer: false};
   lastLookedUpBarcode = null;
   if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
 }
@@ -809,7 +822,10 @@ function startAddPriceForProduct(barcode){
     editingEntryId: null,
     returnToProduct: barcode,
     lookupStatus: null,
-    knownDescriptionDraft: null
+    knownDescriptionDraft: null,
+    showNameSearch: false,
+    nameSearchQuery: '',
+    isOffer: false
   };
   setView('add', false);
 }
@@ -831,7 +847,10 @@ function startEditEntry(entryId){
     editingEntryId: entry.id,
     returnToProduct: null,
     lookupStatus: null,
-    knownDescriptionDraft: null
+    knownDescriptionDraft: null,
+    showNameSearch: false,
+    nameSearchQuery: '',
+    isOffer: !!entry.isOffer
   };
   setView('add', false);
 }
@@ -1079,6 +1098,14 @@ function renderProductFields(){
       </div>` : ''}
     </div>
     <div class="field">
+      <label>Tipo di prezzo</label>
+      <div class="unit-toggle" id="offerToggle">
+        <button data-offer="0" class="${!addState.isOffer?'active':''}">Prezzo normale</button>
+        <button data-offer="1" class="${addState.isOffer?'active':''}">🏷️ Offerta</button>
+      </div>
+      <p class="hint" style="margin:8px 0 0;">Un prezzo in offerta non entra nel calcolo del "prezzo più basso" mostrato in elenco.</p>
+    </div>
+    <div class="field">
       <label>Data</label>
       <input id="dateInput" type="date" value="${addState.date}" max="${todayInputValue()}">
     </div>
@@ -1119,6 +1146,12 @@ function renderProductFields(){
   const qtyUnitSelect = document.getElementById('qtyUnitSelect');
   if(qtyUnitSelect) qtyUnitSelect.addEventListener('change', e=>{ addState.qtyUnit = e.target.value; updatePricePreview(); });
   document.getElementById('dateInput').addEventListener('change', e=> addState.date = e.target.value);
+  document.getElementById('offerToggle').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      addState.isOffer = btn.dataset.offer === '1';
+      renderProductFields();
+    });
+  });
   updatePricePreview();
 
   document.getElementById('saveEntryBtn').addEventListener('click', saveEntry);
@@ -1231,7 +1264,8 @@ async function saveEntry(){
         price: priceNum,
         qty: qtyNum,
         qtyUnit: unitType==='pz' ? 'pz' : addState.qtyUnit,
-        date: entryDate
+        date: entryDate,
+        isOffer: !!addState.isOffer
       };
     }
     await persistEntries();
@@ -1251,7 +1285,8 @@ async function saveEntry(){
     price: priceNum,
     qty: qtyNum,
     qtyUnit: unitType==='pz' ? 'pz' : addState.qtyUnit,
-    date: entryDate
+    date: entryDate,
+    isOffer: !!addState.isOffer
   });
   await persistEntries();
 
