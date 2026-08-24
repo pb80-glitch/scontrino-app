@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -943,35 +943,41 @@ function renderNameSearchBlock(){
   const block = document.getElementById('nameSearchBlock');
   if(!block || !addState.showNameSearch) return;
 
-  const query = (addState.nameSearchQuery || '').toLowerCase();
-  const matches = query.length < 2 ? [] : products.filter(p=>
-    p.name.toLowerCase().includes(query) || (p.brand && p.brand.toLowerCase().includes(query))
-  ).slice(0, 6);
-
   block.innerHTML = `
     <div class="field">
       <label>Cerca per nome o marca</label>
       <input id="nameSearchInput" placeholder="Es. passata, Mutti..." value="${escapeAttr(addState.nameSearchQuery || '')}">
     </div>
-    <div id="nameSearchResults">
-      ${query.length < 2 ? `<p class="hint">Scrivi almeno 2 lettere per cercare.</p>` :
-        matches.length === 0 ? `<p class="hint">Nessun prodotto censito corrisponde alla ricerca.</p>` :
-        matches.map(p=>`
-          <div class="product-card" data-barcode="${escapeAttr(p.barcode)}" style="margin-bottom:8px;">
-            <div>
-              ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
-              <div class="name">${escapeHtml(p.name)}</div>
-            </div>
-          </div>`).join('')
-      }
-    </div>
+    <div id="nameSearchResults"></div>
   `;
 
   document.getElementById('nameSearchInput').addEventListener('input', e=>{
     addState.nameSearchQuery = e.target.value;
-    renderNameSearchBlock();
+    updateNameSearchResults();
   });
-  block.querySelectorAll('.product-card').forEach(card=>{
+  updateNameSearchResults();
+}
+
+function updateNameSearchResults(){
+  const resultsEl = document.getElementById('nameSearchResults');
+  if(!resultsEl) return;
+
+  const query = (addState.nameSearchQuery || '').toLowerCase();
+  const matches = query.length < 2 ? [] : products.filter(p=>
+    p.name.toLowerCase().includes(query) || (p.brand && p.brand.toLowerCase().includes(query))
+  ).slice(0, 6);
+
+  resultsEl.innerHTML = query.length < 2 ? `<p class="hint">Scrivi almeno 2 lettere per cercare.</p>` :
+    matches.length === 0 ? `<p class="hint">Nessun prodotto censito corrisponde alla ricerca.</p>` :
+    matches.map(p=>`
+      <div class="product-card" data-barcode="${escapeAttr(p.barcode)}" style="margin-bottom:8px;">
+        <div>
+          ${p.brand ? `<div class="brand">${escapeHtml(p.brand)}</div>` : ''}
+          <div class="name">${escapeHtml(p.name)}</div>
+        </div>
+      </div>`).join('');
+
+  resultsEl.querySelectorAll('.product-card').forEach(card=>{
     card.addEventListener('click', ()=>{
       const barcode = card.dataset.barcode;
       addState.barcode = barcode;
