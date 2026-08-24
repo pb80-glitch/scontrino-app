@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -697,11 +697,12 @@ let addState = {
   date: todayInputValue(),
   editingEntryId: null,
   returnToProduct: null,
-  lookupStatus: null
+  lookupStatus: null,
+  knownDescriptionDraft: null
 };
 
 function resetAddState(){
-  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null};
+  addState = {barcode:'', matchedProduct:null, newName:'', newBrand:'', newDescription:'', newUnitType:'kg', store:'', price:'', qty:'', qtyUnit:'g', date: todayInputValue(), editingEntryId: null, returnToProduct: null, lookupStatus: null, knownDescriptionDraft: null};
   lastLookedUpBarcode = null;
   if(lookupTimer){ clearTimeout(lookupTimer); lookupTimer = null; }
 }
@@ -798,7 +799,9 @@ function startAddPriceForProduct(barcode){
     qtyUnit: product.unitType === 'l' ? 'ml' : 'g',
     date: todayInputValue(),
     editingEntryId: null,
-    returnToProduct: barcode
+    returnToProduct: barcode,
+    lookupStatus: null,
+    knownDescriptionDraft: null
   };
   setView('add', false);
 }
@@ -817,7 +820,10 @@ function startEditEntry(entryId){
     qty: entry.qtyUnit === 'pz' ? '' : String(entry.qty),
     qtyUnit: entry.qtyUnit === 'pz' ? (product && product.unitType==='l' ? 'ml' : 'g') : entry.qtyUnit,
     date: toDateInputValue(entry.date),
-    editingEntryId: entry.id
+    editingEntryId: entry.id,
+    returnToProduct: null,
+    lookupStatus: null,
+    knownDescriptionDraft: null
   };
   setView('add', false);
 }
@@ -875,6 +881,7 @@ function renderAdd(){
       addState.barcode = e.target.value.trim();
       addState.matchedProduct = products.find(p=>p.barcode === addState.barcode) || null;
       addState.lookupStatus = null;
+      addState.knownDescriptionDraft = null;
       renderProductFields();
       scheduleOnlineLookup(addState.barcode);
     });
@@ -894,12 +901,16 @@ function renderProductFields(){
   let html = '';
 
   if(isKnown){
+    const descValue = addState.knownDescriptionDraft !== null ? addState.knownDescriptionDraft : (addState.matchedProduct.description || '');
     html += `
       <div class="field">
         <label>Prodotto</label>
         <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:600;padding:4px 2px;">${escapeHtml(addState.matchedProduct.name)}</div>
         ${addState.matchedProduct.brand ? `<div style="font-size:13px;color:var(--ink-soft);padding:0 2px;">${escapeHtml(addState.matchedProduct.brand)}</div>` : ''}
-        ${addState.matchedProduct.description ? `<div style="font-size:12.5px;color:var(--ink-soft);padding:4px 2px 0;line-height:1.4;">${escapeHtml(addState.matchedProduct.description)}</div>` : ''}
+      </div>
+      <div class="field">
+        <label>Descrizione aggiuntiva</label>
+        <input id="knownDescriptionInput" placeholder="Es. Confezione da 3 x 700g, bio" value="${escapeAttr(descValue)}">
       </div>`;
   } else {
     html += `
@@ -982,6 +993,8 @@ function renderProductFields(){
         renderProductFields();
       });
     });
+  } else {
+    document.getElementById('knownDescriptionInput').addEventListener('input', e=> addState.knownDescriptionDraft = e.target.value);
   }
 
   container.querySelectorAll('.chip').forEach(chip=>{
@@ -1082,6 +1095,16 @@ async function saveEntry(){
       unitType: addState.newUnitType
     });
     await persistProducts();
+  } else if(addState.knownDescriptionDraft !== null){
+    const newDesc = addState.knownDescriptionDraft.trim();
+    if(newDesc !== (addState.matchedProduct.description || '')){
+      const idx = products.findIndex(p=>p.barcode === addState.matchedProduct.barcode);
+      if(idx !== -1){
+        products[idx] = {...products[idx], description: newDesc};
+        addState.matchedProduct = products[idx];
+        await persistProducts();
+      }
+    }
   }
   // ensure store exists in list
   const storeName = addState.store.trim();
@@ -1318,6 +1341,7 @@ async function toggleCamera(){
           addState.barcode = value;
           addState.matchedProduct = products.find(p=>p.barcode === value) || null;
           addState.lookupStatus = null;
+          addState.knownDescriptionDraft = null;
           document.getElementById('barcodeInput').value = value;
           renderProductFields();
           showToast('Codice rilevato: ' + value);
