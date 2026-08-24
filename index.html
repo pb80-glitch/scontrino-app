@@ -442,7 +442,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -840,7 +840,7 @@ function startEditEntry(entryId){
     newName:'', newBrand:'', newDescription:'',
     newUnitType: product ? product.unitType : 'kg',
     store: entry.store,
-    price: String(entry.price).replace('.', ','),
+    price: String(entry.price),
     qty: entry.qtyUnit === 'pz' ? '' : String(entry.qty),
     qtyUnit: entry.qtyUnit === 'pz' ? (product && product.unitType==='l' ? 'ml' : 'g') : entry.qtyUnit,
     date: toDateInputValue(entry.date),
