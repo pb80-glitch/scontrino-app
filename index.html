@@ -464,7 +464,7 @@ nav.bottom button.active{color:var(--green-dark);font-weight:600;}
 
 <script>
 // ---------------- STATE ----------------
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 let products = [];      // {barcode, name, brand, description, unitType: 'kg'|'l'|'pz'}
 let entries = [];        // {id, barcode, store, price, qty, qtyUnit, date}
 let stores = [];         // string[]
@@ -1001,6 +1001,9 @@ function renderAdd(){
       addState.matchedProduct = products.find(p=>p.barcode === addState.barcode) || null;
       addState.lookupStatus = null;
       addState.knownDescriptionDraft = null;
+      if(addState.matchedProduct){
+        addState.qtyUnit = addState.matchedProduct.unitType === 'l' ? 'ml' : 'g';
+      }
       renderProductFields();
       scheduleOnlineLookup(addState.barcode);
     });
@@ -1067,6 +1070,9 @@ function updateNameSearchResults(){
       addState.knownDescriptionDraft = null;
       addState.showNameSearch = false;
       addState.nameSearchQuery = '';
+      if(addState.matchedProduct){
+        addState.qtyUnit = addState.matchedProduct.unitType === 'l' ? 'ml' : 'g';
+      }
       const barcodeInput = document.getElementById('barcodeInput');
       if(barcodeInput) barcodeInput.value = barcode;
       document.getElementById('nameSearchBlock').innerHTML = '';
@@ -1546,6 +1552,9 @@ async function toggleCamera(){
           addState.matchedProduct = products.find(p=>p.barcode === value) || null;
           addState.lookupStatus = null;
           addState.knownDescriptionDraft = null;
+          if(addState.matchedProduct){
+            addState.qtyUnit = addState.matchedProduct.unitType === 'l' ? 'ml' : 'g';
+          }
           document.getElementById('barcodeInput').value = value;
           renderProductFields();
           showToast('Codice rilevato: ' + value);
